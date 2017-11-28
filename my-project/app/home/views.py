@@ -6,6 +6,7 @@ import requests
 import ast
 import json
 
+
 import phonenumbers
 from phonenumbers import carrier
 from phonenumbers.phonenumberutil import number_type
@@ -26,10 +27,12 @@ from . forms import IssueForm, QueryForm, SubIssueForm
 from .. import db
 from ..models import Employee, Issue, SubIssue, Query
 
-firebaseget = firebase.FirebaseApplication('https://eager-621db.firebaseio.com/Reports/')
-firebasepost = firebase.FirebaseApplication('https://eager-621db.firebaseio.com/VerifiedReports/')
+#firebaseget = firebase.FirebaseApplication('https://eager-621db.firebaseio.com/Reports/')
+#firebasepost = firebase.FirebaseApplication('https://eager-621db.firebaseio.com/VerifiedReports/')
 
+eagerdatabase = firebase.FirebaseApplication('https://eager-621db.firebaseio.com/')
 d = {}
+
 
 @home.route('/')
 def homepage():
@@ -101,122 +104,24 @@ def select_sub_issue(id):
 @home.route('/admin/dashboard', methods=['GET', 'POST'])
 @login_required
 def admin_dashboard():
-	dataset = []
-	allData = []
-	header = ['User', 'Issue', 'SubIssue', 'additional_info', 'Phone', 'latitude', 'longitude', 'zip_code']
-	row = []
-	queries = Query.query.all()
-	for q in queries:
-		row.append(q.location.split(',')[0])
-		row.append(q.location.split(',')[1])
-		row.append(q.zip_code)
-		dataset.append([float(x) for x in row])
-		row = []
-
-	for q in queries:
-		row.append(q.employee.username)
-		row.append(q.issue.name)
-		row.append(q.subissue.name)
-		row.append(q.additional_info)
-		row.append(q.phone)
-		row.append(q.location.split(',')[0])
-		row.append(q.location.split(',')[1])
-		row.append(q.zip_code)
-		allData.append([x for x in row])
-		row = []
-
-	o_dataset = np.array(dataset)
-
-	##numpy columns
-	X = o_dataset[:,0]
-	Y = o_dataset[:,1]
-	Z = o_dataset[:,2]
-	fig = plt.figure()
-	ax = fig.add_subplot(111, projection='3d')
-	nb_clusters = 3
-	colors = ["g","r","b"]
-	kmeans = KMeans(n_clusters=nb_clusters)
-	kmeans.fit(o_dataset)
-
-	centriods = kmeans.cluster_centers_
-	labels = kmeans.labels_
-
-	clusters = []
-	clusters_issues = []
-	for c in range(nb_clusters):
-		##only for plotting
-		clusters.append([])
-		##for json
-		clusters_issues.append([])
-
-	for c in range(nb_clusters):
-		for i in range(len(o_dataset)):
-			if labels[i]==c:
-				clusters[c].append(o_dataset[i])
-				clusters_issues[c].append(allData[i])
-
-	resultDict = {}
-	counter = 0
-	for cluster in clusters_issues:
-		df = pd.DataFrame(cluster, columns=header,index=['row_{0}'.format(x) for x in range(len(cluster))])
-		df = df.transpose()
-		jsonObject = df.to_dict()
-		resultDict["cluster{0}".format(counter)] = jsonObject
-		counter+=1
-
-	out_json = json.dumps(resultDict)
-	get = firebaseget.get('/ClusteredData',None)
-
-	if(get is None):
-		post = firebasepost.post('/ClusteredData',ast.literal_eval(out_json))
-
-	count=0
-	for i in ast.literal_eval(out_json):
-		if ast.literal_eval(out_json)[i] != {}:
-			count+=1
-	cluster_size = len(ast.literal_eval(out_json)['cluster0'])
-
-	json_dict = ast.literal_eval(out_json)
-
-	for i in range(c):
-		json_dict['cluster{}'.format(i)]['User'] = ""
-		json_dict['cluster{}'.format(i)]['Issue'] = ""
-		json_dict['cluster{}'.format(i)]['SubIssue'] = ""
-		json_dict['cluster{}'.format(i)]['additional_info'] = ""
-		for j in range(3):
-			json_dict['cluster{}'.format(i)]['User'] +=  json_dict['cluster{}'.format(i)]['row_{}'.format(j)]['User'] + ', '
-			json_dict['cluster{}'.format(i)]['Issue'] +=  json_dict['cluster{}'.format(i)]['row_{}'.format(j)]['Issue'] + ', '
-			json_dict['cluster{}'.format(i)]['SubIssue'] +=  json_dict['cluster{}'.format(i)]['row_{}'.format(j)]['SubIssue'] + ', '
-			json_dict['cluster{}'.format(i)]['additional_info'] +=  json_dict['cluster{}'.format(i)]['row_{}'.format(j)]['additional_info'] + ', '
-
-	final_json = {}
-	for i in range(c):
-		row_dict = {}
-		row_dict['User'] = json_dict['cluster{}'.format(i)]['User']
-		row_dict['Issue'] = json_dict['cluster{}'.format(i)]['Issue']
-		row_dict['SubIssue'] = json_dict['cluster{}'.format(i)]['SubIssue']
-		row_dict['additional_info'] = json_dict['cluster{}'.format(i)]['additional_info']
-		row_dict['location'] = json_dict['cluster{}'.format(i)]['row_0']['latitude'] + ',' + json_dict['cluster{}'.format(i)]['row_0']['longitude']
-		row_dict['phone'] = json_dict['cluster{}'.format(i)]['row_0']['Phone']
-		row_dict['zip_code'] = json_dict['cluster{}'.format(i)]['row_0']['zip_code']
-		final_json['cluster{}'.format(i)] = row_dict
-
-	counter = 0
-	for cluster in clusters:
-		data = np.array(cluster)
-		if cluster != []:
-			X = data[:,0]
-			Y = data[:,1]
-			Z = data[:,2]
-		ax.scatter(X, Y, Z, c=colors[counter], marker='o')
-		counter+=1
-
-	ax.scatter(centriods[:,0],centriods[:,1],centriods[:,2], c = 'black', marker='x')
+	reports = eagerdatabase.get('/Reports', None)
+	print "Aditya Parmar"
 
 
-	form = QueryForm()
+	print "-------------Aditya Parmar-------------"
+	for key in reports:
+		print key
+		print "--data---"
+		print reports[key]
+		print reports[key]['compactReports']
+		print reports[key]['timestamp']
+		print reports[key]['longitude']
+		print reports[key]['latitude']
+		print reports[key]['phoneNumber']
+		print reports[key]['type']
 
-	return render_template('home/admin_dashboard.html',form = form, queries = queries, title="Admin Dashboard",content = list(final_json.values()))
+
+	return render_template('home/admin_dashboard.html',reports=reports, title="Admin - Dashboard")
 
 
 #delete a query
